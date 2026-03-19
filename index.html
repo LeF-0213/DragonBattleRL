@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dragon Duel</title>
+  <style>
+    /* =========================================================
+       페이지 전체 배경: start_bg.webP (캔버스 바깥 영역)
+       ========================================================= */
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+
+      /* 캔버스(720x1280) 바깥 배경 */
+      background: url("./assets/start_bg.webP") center/cover no-repeat fixed;
+
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #f5f5f5;
+    }
+
+    /* =========================================================
+       게임 캔버스를 화면 중앙에 배치
+       ========================================================= */
+    #game-root {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    /* 이 영역 안에서만 선택 UI가 클릭됨 */
+    #game-frame {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* 캔버스 (프레임과 정확히 동일 크기) */
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+      border-radius: 16px;
+      background: transparent;
+      display: block;
+    }
+
+    /* =========================================================
+       인게임 UI: 캔버스 위(720x1280)에서만 표시
+       ========================================================= */
+    .ui-overlay {
+      position: absolute;   /* fixed → absolute (프레임 안) */
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+      text-shadow: 0 0 6px rgba(0,0,0,0.7);
+      pointer-events: none; /* 클릭 방해X */
+      z-index: 15;
+    }
+
+    .ui-panel {
+      background: rgba(8, 10, 20, 0.7);
+      border-radius: 999px;
+      padding: 6px 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hp-bar { display: flex; gap: 4px; }
+    .hp-cell { width: 12px; height: 12px; border-radius: 2px; background: #333; }
+
+    .hp-cell.full.blue {
+      background: linear-gradient(135deg, #3bd0ff, #4a7dff);
+      box-shadow: 0 0 8px rgba(72, 166, 255, 0.8);
+    }
+
+    .hp-cell.full.red {
+      background: linear-gradient(135deg, #ff5c5c, #ff9b4a);
+      box-shadow: 0 0 8px rgba(255, 120, 80, 0.8);
+    }
+
+    .cooldown-group { display: flex; gap: 6px; }
+    .cd-skill {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .cd-label { opacity: 0.7; margin-right: 2px; }
+    .cd-time { font-variant-numeric: tabular-nums; }
+
+    /* =========================================================
+       선택 화면(드래곤/배경/시작/게임방법):
+       - 720x1280 프레임 안에서만 클릭 가능
+       ========================================================= */
+    #character-select {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+
+      /* 선택 UI 배경: 캔버스 위 반투명 오버레이 */
+      background: rgba(5, 6, 10, 0.3);
+
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    #character-select.hidden { display: none; }
+
+    .title-wrap { text-align: center; margin-bottom: 18px; }
+    .game-title { font-size: 42px; font-weight: 900; letter-spacing: 1px; color: #fff; }
+    .title-sub { font-size: 13px; color: #9aa0aa; margin-top: 6px; }
+
+    .top-actions { position: absolute; top: 18px; right: 18px; }
+
+    .help-btn {
+      pointer-events: auto;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(12,14,24,0.70);
+      color: #e8e8e8;
+      cursor: pointer;
+    }
+    .help-btn:hover { border-color: rgba(255,255,255,0.30); }
+
+    #character-select h2 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      font-weight: 700;
+      color: #e8e8e8;
+    }
+
+    #character-select .step-desc {
+      margin: 0 0 24px;
+      font-size: 14px;
+      color: #b0b0b0;
+      text-align: center;
+      max-width: 650px;
+      line-height: 1.45;
+    }
+
+    /* 드래곤 선택 카드 */
+    .dragon-options {
+      display: flex;
+      gap: 28px;
+      margin-bottom: 28px;
+    }
+
+    .dragon-option {
+      width: 220px;
+      padding: 12px;
+      border-radius: 16px;
+      border: 3px solid rgba(255,255,255,0.15);
+      background: rgba(12, 14, 24, 0.9);
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.12s;
+    }
+
+    .dragon-option:hover {
+      border-color: rgba(255,255,255,0.4);
+      box-shadow: 0 0 28px rgba(255,255,255,0.12);
+      transform: translateY(-1px);
+    }
+
+    .dragon-option.selected {
+      border-color: #6bc9ff;
+      box-shadow: 0 0 24px rgba(107, 201, 255, 0.45);
+    }
+
+    .dragon-option[data-color="white"].selected {
+      border-color: #ff7b7b;
+      box-shadow: 0 0 24px rgba(255, 123, 123, 0.45);
+    }
+
+    .dragon-option img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      pointer-events: none;
+      background: rgba(0,0,0,0.18);
+    }
+
+    .dragon-option .label {
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+      color: #d8d8d8;
+      text-align: center;
+    }
+
+    /* 배경 선택 (가로 1920×1080 비율) */
+    .bg-select-label {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e8e8e8;
+      margin: 0 0 10px;
+    }
+
+    .bg-options {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 680px;
+    }
+
+    .bg-option {
+      width: 213px;
+      height: 120px; /* 1920:1080 가로 비율 */
+      border-radius: 12px;
+      border: 3px solid rgba(255,255,255,0.15);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.12s;
+      background: rgba(0,0,0,0.2);
+    }
+
+    .bg-option:hover {
+      border-color: rgba(255,255,255,0.4);
+      box-shadow: 0 0 20px rgba(255,255,255,0.1);
+      transform: translateY(-1px);
+    }
+
+    .bg-option.selected {
+      border-color: #8b5cf6;
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.55);
+    }
+
+    .bg-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+      display: block;
+    }
+
+    .start-btn {
+      margin-top: 22px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .start-btn:hover { filter: brightness(1.08); }
+    .start-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* =========================================================
+       게임 방법 모달
+       - 배경 이미지: help_bg.webP
+       ========================================================= */
+    .modal.hidden { display: none; }
+    .modal { position: absolute; inset: 0; z-index: 30; } /* 프레임 안 */
+    .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
+
+    .modal-card {
+      position: relative;
+      width: min(680px, 92%);
+      max-height: 80vh;
+      margin: 10% auto 0;
+      border-radius: 16px;
+
+      /* help 배경 이미지 */
+      background: url("./assets/help_bg.webP") center/cover no-repeat;
+
+      border: 1px solid rgba(255,255,255,0.12);
+      overflow: hidden;
+    }
+
+    .modal-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(12, 14, 24, 0.78);
+      z-index: 0;
+    }
+
+    .modal-head, .modal-body { position: relative; z-index: 1; }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .modal-title { font-weight: 800; }
+
+    .modal-close {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: #e8e8e8;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      max-height: 70vh;
+      color: #d7d7d7;
+      line-height: 1.45;
+    }
+
+    .modal-body h3 { margin: 14px 0 8px; color: #fff; }
+    .modal-body ul { margin: 0 0 10px 18px; padding: 0; }
+    .modal-body li { margin: 6px 0; }
+
+    /* 모달 아이템 안내 (아이콘 + 설명) */
+    .item-guide {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      margin: 10px 0;
+    }
+    .item-icon {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: rgba(0,0,0,0.2);
+    }
+    .item-text { display: flex; flex-direction: column; gap: 4px; }
+    .item-name { font-weight: 800; color: #fff; }
+    .item-desc { color: #cfcfcf; font-size: 14px; line-height: 1.35; }
+
+    .skill-guide {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    margin: 10px 0;
+  }
+  .skill-icon {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.2);
+  }
+  .skill-text { display: flex; flex-direction: column; gap: 4px; }
+  .skill-name { font-weight: 800; color: #fff; }
+  .skill-desc { color: #cfcfcf; font-size: 14px; line-height: 1.35; }
+  /* AI 난이도 선택 */
+  .difficulty-options {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .difficulty-option {
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
+    color: #e0e0e0;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .difficulty-option:hover {
+    border-color: rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.08);
+  }
+  .difficulty-option.selected {
+    border-color: #8b5cf6;
+    background: rgba(139, 92, 246, 0.25);
+    color: #fff;
+  }
+  </style>
+</head>
+<body>
+  <div id="game-root">
+    <div id="game-frame">
+      <canvas id="game-canvas" width="1920" height="1080"></canvas>
+
+      <!-- 인게임 UI (게임 시작 후 표시) -->
+      <div class="ui-overlay" id="ui-overlay" aria-hidden="true" hidden>
+        <div class="ui-panel" id="player-panel">
+          <span id="player-label">Player</span>
+          <div class="hp-bar" id="player-hp"></div>
+          <div class="cooldown-group" id="player-cd"></div>
+        </div>
+        <div class="ui-panel" id="ai-panel">
+          <span id="ai-label">AI</span>
+          <div class="hp-bar" id="ai-hp"></div>
+          <div class="cooldown-group" id="ai-cd"></div>
+        </div>
+      </div>
+
+      <div id="character-select">
+        <div class="title-wrap">
+          <div class="game-title">Dragon Duel</div>
+          <div class="title-sub">드래곤 듀얼: 경계의 불꽃</div>
+        </div>
+
+        <div class="top-actions">
+          <button type="button" class="help-btn" id="help-btn">게임 방법</button>
+        </div>
+
+        <h2>드래곤 선택</h2>
+        <p class="step-desc">플레이할 드래곤을 고르세요. AI는 자동으로 다른 색이 됩니다.</p>
+
+        <div class="dragon-options">
+          <button type="button" class="dragon-option" data-color="black" aria-label="검은 드래곤 푸른 불꽃">
+            <img src="./assets/black_dragon_f.webP" alt="검은 드래곤" />
+          </button>
+          <button type="button" class="dragon-option" data-color="white" aria-label="하얀 드래곤 붉은 불꽃">
+            <img src="./assets/white_dragon_f.webP" alt="하얀 드래곤" />
+          </button>
+        </div>
+
+        <span class="bg-select-label">배경 컨셉 선택</span>
+        <p class="step-desc">시작할 배경을 골라주세요.</p>
+
+        <div class="bg-options">
+          <button type="button" class="bg-option" data-bg-index="0" aria-label="배경 1"><img src="./assets/bg_1.webP" alt="배경 1" /></button>
+          <button type="button" class="bg-option" data-bg-index="1" aria-label="배경 2"><img src="./assets/bg_2.webP" alt="배경 2" /></button>
+          <button type="button" class="bg-option" data-bg-index="2" aria-label="배경 3"><img src="./assets/bg_3.webP" alt="배경 3" /></button>
+        </div>
+
+        <br />
+        
+        <span class="bg-select-label">AI 난이도</span>
+        <p class="step-desc">상대 AI 난이도를 선택하세요.</p>
+
+        <div class="difficulty-options">
+          <button type="button" class="difficulty-option selected" data-level="easy" aria-label="쉬움">쉬움</button>
+          <button type="button" class="difficulty-option" data-level="normal" aria-label="보통">보통</button>
+          <button type="button" class="difficulty-option" data-level="hard" aria-label="어려움">어려움</button>
+        </div>
+
+        <button type="button" class="start-btn" id="start-game-btn" disabled>전투 시작</button>
+      </div>
+
+      <!-- 게임 방법 모달 (프레임 안에서만 표시) -->
+      <div class="modal hidden" id="help-modal" aria-hidden="true">
+        <div class="modal-backdrop" id="help-backdrop"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="help-title">
+          <div class="modal-head">
+            <div class="modal-title" id="help-title">게임 방법</div>
+            <button type="button" class="modal-close" id="help-close" aria-label="닫기">닫기</button>
+          </div>
+
+          <div class="modal-body">
+            <h3>기본</h3>
+            <ul>
+              <li>맵은 화면 전체이며, 두 드래곤 모두 맵 전체를 자유롭게 이동할 수 있습니다.</li>
+              <li>체력(HP): 5칸. HP가 0이 되면 패배합니다.</li>
+            </ul>
+          
+            <h3>조작</h3>
+            <ul>
+              <li>이동: 마우스 우클릭 (클릭한 방향으로 이동)</li>
+              <li>기본 공격: 마우스 좌클릭 (커서 방향으로 발사)</li>
+              <li>스킬: Q / W / E / R</li>
+              <li>정화: D (스턴 상태일 때만 사용 가능, 100초 쿨타임)</li>
+              <li>점멸: F (짧은 거리 순간이동, 300초 쿨타임)</li>
+            </ul>
+          
+            <h3>공격 / 판정</h3>
+            <ul>
+              <li>기본탄과 스킬 탄환은 각자 정해진 사거리 안에서만 유효하며, 사거리 밖으로 나가면 사라집니다.</li>
+              <li>용은 방향에 따라 회전하며, 투사체와 용의 거리/반지름이 겹칠 때만 공격이 적중합니다.</li>
+            </ul>
+          
+            <h3>스킬</h3>
+
+            <div class="skill-guide">
+              <img class="skill-icon" src="./assets/homing_b.webP" alt="Q 유도 화염" />
+              <img class="skill-icon" src="./assets/homing_w.webP" alt="Q 유도 화염" />
+              <div class="skill-text">
+                <div class="skill-name">Q – 유도 화염</div>
+                <div class="skill-desc">적을 천천히 추적하는 화염탄입니다. 상대가 움직여도 따라가며, 멀티샷 레벨에 따라 여러 발이 발사됩니다.</div>
+              </div>
+            </div>
+            <div class="skill-guide">
+              <img class="skill-icon" src="./assets/reflect_b.webP" alt="W 공격 반사" />
+              <img class="skill-icon" src="./assets/reflect_w.webP" alt="W 공격 반사" />
+              <div class="skill-text">
+                <div class="skill-name">W – 공격 반사</div>
+                <div class="skill-desc">
+                  사용 후 1초 동안 기본탄 / Q 유도탄 / E 스턴탄을 반사합니다.
+                  (R 잔상/등 투사체는 반사되지 않음)
+                </div>
+              </div>
+            </div>
+            <div class="skill-guide">
+              <img class="skill-icon" src="./assets/stun_b.webP" alt="E 스턴탄" />
+              <img class="skill-icon" src="./assets/stun_w.webP" alt="E 스턴탄" />
+              <div class="skill-text">
+                <div class="skill-name">E – 스턴탄</div>
+                <div class="skill-desc">명중 시 적을 잠시 멈추게 만드는 스턴 탄환입니다. W 스킬로 반사될 수 있습니다.</div>
+              </div>
+            </div>
+            <div class="skill-guide">
+              <img class="skill-icon" src="./assets/black_dragon_b.webP" alt="R 불꽃 잔상" />
+              <img class="skill-icon" src="./assets/white_dragon_b.webP" alt="R 불꽃 잔상" />
+              <div class="skill-text">
+                <div class="skill-name">R – 불꽃 잔상</div>
+                <div class="skill-desc">등 방향으로 긴 불꽃 잔상을 남기며, 잔상 영역 안에 있는 적에게 지속 피해를 줍니다. 반사는 되지 않습니다.</div>
+              </div>
+            </div>
+          
+            <h3>아이템</h3>
+          
+            <div class="item-guide">
+              <img class="item-icon" src="./assets/power_up.webP" alt="파워 업 아이템" />
+              <div class="item-text">
+                <div class="item-name">파워 업 (멀티샷)</div>
+                <div class="item-desc">기본 탄환 개수 +1 (최대 3). 각도 15도 간격으로 여러 방향으로 발사됩니다.</div>
+              </div>
+            </div>
+          
+            <div class="item-guide">
+              <img class="item-icon" src="./assets/hp_up.webP" alt="HP 업 아이템" />
+              <div class="item-text">
+                <div class="item-name">HP 업 (회복)</div>
+                <div class="item-desc">소실된 체력 1칸을 회복합니다.</div>
+              </div>
+            </div>
+          
+            <ul>
+              <li>아이템은 맵 아무 곳에나 랜덤으로 생성되며, 생성된 위치에 고정된 상태로 약 1분 동안 유지됩니다.</li>
+              <li>드래곤이 아이템과 접촉하면 그 즉시 효과를 얻고, 1분이 지나면 자동으로 사라집니다.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <script type="module" src="./src/main.js"></script>
+    </div>
+  </div>
+</body>
+</html>
