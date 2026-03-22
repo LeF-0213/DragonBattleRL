@@ -184,6 +184,13 @@ def main():
         buf_obs, buf_act, buf_logp, buf_rew, buf_done, buf_val = [], [], [], [], [], []
         ep_rewards = []
 
+        # --- 에피소드 통계 (이 rollout 구간 안에서만) ---
+        ep_returns: List[float] = []      # 끝난 판마다 PPO 쪽 누적 보상
+        ep_wins = 0
+        ep_losses = 0
+        ep_count = 0
+        ep_return_acc = 0.0               # 현재 진행 중 판 누적
+
         for _ in range(cfg.rollout_steps):
             with torch.no_grad():
                 a_p, logp_p, _, v_p = net.sample_action(o_p.unsqueeze(0))
@@ -196,6 +203,27 @@ def main():
 
             next_obs_p, next_obs_ai = out["obsPlayer"], out["obsAI"]
             r_p, r_ai, done = float(out["rewardPlayer"]), float(out["rewardAI"]), bool(out["done"])
+
+            if done:
+                # step 직후 obs는 보통 종료 직후 상태 (한쪽 hp=0)
+                sp = next_obs_p.get("self", {})
+                se = next_obs_p.get("enemy", {})
+                # player 기준: 내 hp > 0 이면 승
+                if cfg.ppo_side == "player":
+                    if float(sp.get("hp", 0)) > 0.01:
+                        ep_wins += 1
+                    else:
+                        ep_losses += 1
+                else:
+                    # PPO = ai → obs_ai 기준 self 가 PPO
+                    sa = next_obs_ai.get("self", {})
+                    if float(sa.get("hp", 0)) > 0.01:
+                        ep_wins += 1
+                    else:
+                        ep_losses += 1
+                ep_returns.append(ep_return_acc)
+                ep_count += 1
+                ep_return_acc = 0.0
 
             # -------------------------------
             # 2) player transition 적재
@@ -300,7 +328,14 @@ def main():
             }, ckpt_path)
             print(f"[ckpt] step={global_step:,} saved={ckpt_path}")
 
-        print(f"[rollout {rollout_idx}] step={global_step:,} mean_ep_r={np.mean(ep_rewards):.4f}")
+        mean_ep_r = float(np.mean(ep_returns)) if ep_returns else float("nan")
+        win_rate = ep_wins / ep_count if ep_count else float("nan")
+        print(
+            f"[rollout {rollout_idx}] step={global_step:,} "
+            f"mean_step_r={np.mean(ep_rewards):.4f} | "
+            f"episodes={ep_count} mean_ep_return={mean_ep_r:.2f} "
+            f"win_rate={win_rate:.2%} (W{ep_wins}/L{ep_losses})"
+        )
 
     env.close()
 

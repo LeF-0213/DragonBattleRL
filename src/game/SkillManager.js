@@ -24,6 +24,9 @@ export class SkillManager {
 
         // W 발동 후 1초 내에 반사 성공 시 W 쿨 5초 감소
         this.pendingReflectWindow = 0;
+
+        // D 발동 후 이 시간 안에 적 E 스턴탄 맞으면 피해·스턴 무효
+        this.pendingStunPurifyWindow = 0;
     }
 
     update(dt) {
@@ -73,7 +76,7 @@ export class SkillManager {
         return true;
     }
 
-    /** 정화(D): R 스턴+데미지 해제. 100초 쿨. 스턴 중에만 유효. */
+    /** 정화(D) 쿨 적용 — 실제 동작은 Dragon.processDInput 에서 분기 */
     useD() {
         if (!this.canUse('D')) return false;
         this.cooldowns.D = GAME_CONFIG.skillCooldowns.D;
@@ -108,6 +111,11 @@ export class SkillManager {
             this.cooldowns.W -= Math.max(0, this.cooldowns.W - 5);
             this.pendingReflectWindow = 0;
         }
+    }
+
+    // D 발동 후 이 시간 안에 적 E 스턴탄 맞으면 피해·스턴 무효
+    beginStunPurifyWindow() {
+        this.pendingStunPurifyWindow = GAME_CONFIG.stunPurifyWindow ?? 0.5;
     }
 
     getCooldownStatus() {

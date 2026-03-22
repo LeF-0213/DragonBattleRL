@@ -164,8 +164,8 @@ export class CoreGame {
         this.shootCdAI = Math.max(0, this.shootCdAI - clampedDt);
 
         // 정화(D) 처리 (스턴 + 데미지 해제)
-        if (actionPlayer?.useD) this.player.tryBreakFree(this.time);
-        if (actionAI?.useD) this.ai.tryBreakFree(this.time);
+        if (actionPlayer?.useD) this.player.processDInput(this.time);
+        if (actionAI?.useD) this.ai.processDInput(this.time);
 
         // 이동 (액션의 moveX/moveY → targetPos)
         this.applyMovementAction(this.player, actionPlayer, clampedDt);
@@ -288,6 +288,8 @@ export class CoreGame {
                 y: it.pos.y / GAME_CONFIG.height,
                 type: it.type,
             })),
+
+            stunned: self.isStunned(this.time) ? 1 : 0
         };
     }
 
@@ -634,6 +636,11 @@ export class CoreGame {
                     // W 반사 성공 처리(쿨감 등)
                     victim.skill.onReflectSuccess();
                     this.events.push({ type: 'reflect', by: victim.id });
+                } else if (p.stunOnHit && victim.skill.pendingStunPurifyWindow > 0) {
+                    // D 정화 창 안에 적 E 스턴탄 맞음 → 피해·스턴 없음
+                    p.alive = false;
+                    victim.skill.pendingStunPurifyWindow = 0;
+                    this.events.push({ type: 'stun_purified', by: victim.id });
                 } else {
                     // 실제 피격
                     p.alive = false;

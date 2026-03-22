@@ -120,7 +120,15 @@
     .game-title { font-size: 42px; font-weight: 900; letter-spacing: 1px; color: #fff; }
     .title-sub { font-size: 13px; color: #9aa0aa; margin-top: 6px; }
 
-    .top-actions { position: absolute; top: 18px; right: 18px; }
+    .top-actions {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
 
     .help-btn {
       pointer-events: auto;
@@ -482,6 +490,28 @@
     bottom: 16px !important;
     transform: translateX(-50%) !important;
   }
+  /* Arena 설정은 모달 안에만 두고, 카드 안에서는 떠 있지 않게 */
+  #arena-modal {
+    z-index: 35;
+  }
+  #arena-modal #arena-panel {
+    position: static;
+    transform: none;
+    left: auto;
+    top: auto;
+    max-width: none;
+    background: transparent;
+    border: none;
+    padding: 0;
+    gap: 12px;
+  }
+  #arena-modal #arena-panel h3 {
+    cursor: default;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    opacity: 0.95;
+  }
   </style>
 </head>
 <body>
@@ -503,39 +533,6 @@
         </div>
       </div>
 
-      <section id="arena-panel" class="panel" hidden>
-        <h3>Self-Play Arena (Watch Only)</h3>
-        <div class="row">
-          <label>Policy A:
-            <select id="arenaPolicyA">
-              <option value="hard">hard (best checkpoint)</option>
-              <option value="latest">latest checkpoint</option>
-              <option value="rule">rule-based baseline</option>
-            </select>
-          </label>
-          <label>Policy B:
-            <select id="arenaPolicyB">
-              <option value="latest">latest checkpoint</option>
-              <option value="hard">hard (best checkpoint)</option>
-              <option value="rule">rule-based baseline</option>
-            </select>
-          </label>
-          <label>Speed:
-            <select id="arenaSpeed">
-              <option value="1">1x</option>
-              <option value="2">2x</option>
-              <option value="4">4x</option>
-            </select>
-          </label>
-        </div>
-        <div class="row">
-          <button id="arenaStartBtn">Start Watch</button>
-          <button id="arenaStopBtn">Stop</button>
-          <button id="arenaResetBtn">Reset Match</button>
-        </div>
-        <p id="arenaStatus">idle</p>
-      </section>
-
       <div id="character-select">
         <div class="title-wrap">
           <div class="game-title">Dragon Duel</div>
@@ -544,6 +541,7 @@
 
         <div class="top-actions">
           <button type="button" class="help-btn" id="help-btn">게임 방법</button>
+          <button type="button" class="help-btn" id="watch-arena-btn">Watch Arena</button>
         </div>
 
         <h2>드래곤 선택</h2>
@@ -602,7 +600,7 @@
               <li>이동: 마우스 우클릭 (클릭한 방향으로 이동)</li>
               <li>기본 공격: 마우스 좌클릭 (커서 방향으로 발사)</li>
               <li>스킬: Q / W / E / R</li>
-              <li>정화: D (스턴 상태일 때만 사용 가능, 100초 쿨타임)</li>
+              <li>정화: D (사용하고 0.5초 안에 적 E 스킬 탄환에 맞으면 피해·스턴 무효, 100초 쿨타임)</li>
               <li>점멸: F (짧은 거리 순간이동, 300초 쿨타임)</li>
             </ul>
           
@@ -672,6 +670,54 @@
               <li>아이템은 맵 아무 곳에나 랜덤으로 생성되며, 생성된 위치에 고정된 상태로 약 1분 동안 유지됩니다.</li>
               <li>드래곤이 아이템과 접촉하면 그 즉시 효과를 얻고, 1분이 지나면 자동으로 사라집니다.</li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Watch Arena: 캐릭터 선택 화면의 버튼으로 열리는 모달 -->
+      <div class="modal hidden" id="arena-modal" aria-hidden="true">
+        <div class="modal-backdrop" id="arena-modal-backdrop"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="arena-modal-title">
+          <div class="modal-head">
+            <div class="modal-title" id="arena-modal-title">Watch Arena</div>
+            <button type="button" class="modal-close" id="arena-modal-close" aria-label="닫기">닫기</button>
+          </div>
+          <div class="modal-body">
+            <section id="arena-panel" class="panel">
+              <h3>Self-Play Arena (Watch Only)</h3>
+              <p class="step-desc" style="margin:0 0 8px;font-size:13px;opacity:0.85;">
+                AI 대전
+              </p>
+              <div class="row">
+                <label>Policy A:
+                  <select id="arenaPolicyA">
+                    <option value="hard">hard (best checkpoint)</option>
+                    <option value="latest">latest checkpoint</option>
+                    <option value="rule">rule-based baseline</option>
+                  </select>
+                </label>
+                <label>Policy B:
+                  <select id="arenaPolicyB">
+                    <option value="latest">latest checkpoint</option>
+                    <option value="hard">hard (best checkpoint)</option>
+                    <option value="rule">rule-based baseline</option>
+                  </select>
+                </label>
+                <label>Speed:
+                  <select id="arenaSpeed">
+                    <option value="1">1x</option>
+                    <option value="2">2x</option>
+                    <option value="4">4x</option>
+                  </select>
+                </label>
+              </div>
+              <div class="row">
+                <button type="button" id="arenaStartBtn">Start Watch</button>
+                <button type="button" id="arenaStopBtn">Stop</button>
+                <button type="button" id="arenaResetBtn">Reset Match</button>
+              </div>
+              <p id="arenaStatus">idle</p>
+            </section>
           </div>
         </div>
       </div>

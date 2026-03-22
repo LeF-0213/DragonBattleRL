@@ -904,10 +904,38 @@ async function init() {
     });
 
     // -------------------------------
-    // arena-panel 버튼 연결 (Self-Play Arena Watch Only)
+    // Watch Arena 모달 + arena-panel 컨트롤
     // -------------------------------
-    const arenaPanel = $('#arena-panel');
-    const arenaTitle = arenaPanel ? arenaPanel.querySelector('h3') : null;
+    const watchArenaBtn = $('#watch-arena-btn');
+    const arenaModal = $('#arena-modal');
+    const arenaModalBackdrop = $('#arena-modal-backdrop');
+    const arenaModalClose = $('#arena-modal-close');
+
+    const openArenaModal = () => {
+        if (!arenaModal) return;
+        arenaModal.classList.remove('hidden');
+        arenaModal.removeAttribute('inert');
+        arenaModal.setAttribute('aria-hidden', 'false');
+        arenaModalClose?.focus();
+    };
+    const closeArenaModal = () => {
+        if (!arenaModal) return;
+        watchArenaBtn?.focus();
+        arenaModal.classList.add('hidden');
+        arenaModal.setAttribute('inert', '');
+        arenaModal.setAttribute('aria-hidden', 'true');
+    };
+
+    if (watchArenaBtn && arenaModal) {
+        watchArenaBtn.addEventListener('click', openArenaModal);
+        arenaModalClose?.addEventListener('click', closeArenaModal);
+        arenaModalBackdrop?.addEventListener('click', closeArenaModal);
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !arenaModal.classList.contains('hidden')) {
+                closeArenaModal();
+            }
+        });
+    }
 
     const arenaStartBtn = $('#arenaStartBtn');
     const arenaStopBtn = $('#arenaStopBtn');
@@ -964,19 +992,31 @@ async function init() {
         arenaRunning = true;
         arenaLastTimestamp = performance.now();
 
-        arenaRafId = requestAnimationFrame(() => arenaLoop(playerHpContainer, aiHpContainer, playerCdContainer, aiCdContainer, arenaSpeedEl));
+        closeArenaModal();
+
+        arenaRafId = requestAnimationFrame(() =>
+            arenaLoop(
+                playerHpContainer,
+                aiHpContainer,
+                playerCdContainer,
+                aiCdContainer,
+                arenaSpeedEl,
+                arenaPolicyAEl,
+                arenaPolicyBEl,
+                arenaStatusEl,
+            ),
+        );
     };
 
     const stopArena = () => {
         stopArenaWatch();
+        closeArenaModal();
         // 원래 UI로 복귀
         if (arenaStatusEl) arenaStatusEl.textContent = 'idle';
         if (characterSelect) characterSelect.classList.remove('hidden');
         if (uiOverlay) uiOverlay.hidden = true
     };
 
-    // 제목 클릭 / Start 버튼 클릭 둘 다 시작 가능
-    arenaTitle?.addEventListener('click', startArena);
     arenaStartBtn?.addEventListener('click', startArena);
     arenaStopBtn?.addEventListener('click', stopArena);
     arenaResetBtn?.addEventListener('click', startArena);

@@ -57,7 +57,16 @@ export class Dragon {
         if (!this.skill.useD()) return false;
         this.clearStun();
         this.heal(1);
-        this.skill.useD();
+        return true;
+    }
+
+    processDInput(now) {
+        if (this.isStunned(now)) {
+            return this.tryBreakFree(now);
+        }
+        if (!this.skill.canUse('D')) return false;
+        if (!this.skill.useD()) return false;
+        this.skill.beginStunPurifyWindow();
         return true;
     }
 

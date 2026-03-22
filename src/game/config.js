@@ -36,6 +36,9 @@ export const GAME_CONFIG = {
         R: 4.0,             // R 잔상
     },
 
+    // D(정화): 누른 뒤 이 시간(초) 안에 적 E 스턴탄에 맞으면 피해·스턴 무효
+    stunPurifyWindow: 0.5,
+
     // R 장판 관련 밸런스
     // 적이 장판을 진입할 때만 1초 둔화가 걸리도록(중복 진입 방지)
     trailSlowDuration: 1.0,

@@ -93,10 +93,13 @@ def flatten_obs(obs: dict) -> np.ndarray:
     for _ in range(MAX_ITEMS - len(items)):
         vec.extend([0.0] * 4)
 
+    # stunned
+    vec.append(_safe(obs.get("stunned")))
+
     return np.asarray(vec, dtype=np.float32)
 
 # 최종 입력 벡터의 길이를 계산 (AI 모델 설계시 필요)
-OBS_DIM = int(1 + 10 + 10 + MAX_PROJECTILES * 7 + MAX_ITEMS * 4)
+OBS_DIM = int(1 + 10 + 10 + MAX_PROJECTILES * 7 + MAX_ITEMS * 4 + 1)
 
 # --------------------------------------------------------------
 # Action 변환 (De-Normalization: PPO 출력값을 CoreGame 액션 dict로 변환)
