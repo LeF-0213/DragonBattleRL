@@ -393,6 +393,95 @@
     background: rgba(139, 92, 246, 0.25);
     color: #fff;
   }
+  /* Self-Play Arena 컨트롤 패널 */
+  #arena-panel {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    /* theme */
+    background: rgba(8, 10, 20, 0.75);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 16px;
+    padding: 10px 14px;
+    /* 클릭 가능 */
+    pointer-events: auto;
+    /* 레이아웃 */
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* 글자 */
+    color: #f5f5f5;
+    font-size: 14px;
+    /* 너무 넓어질 때 */
+    max-width: 92vw;
+  }
+  /* HTML에 hidden 속성을 붙이면 숨기기 */
+  #arena-panel[hidden] {
+    display: none;
+  }
+  /* 줄(row) 레이아웃 */
+  #arena-panel .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  /* label */
+  #arena-panel label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    opacity: 0.95;
+  }
+  /* select */
+  #arena-panel select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(12,14,24,0.75);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #e8e8e8;
+    outline: none;
+  }
+  /* button */
+  #arena-panel button {
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(12,14,24,0.70);
+    border: 1px solid rgba(255,255,255,0.14);
+    color: #e8e8e8;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.15s, background 0.15s;
+  }
+  #arena-panel button:hover {
+    border-color: rgba(255,255,255,0.30);
+    background: rgba(20,22,34,0.85);
+  }
+  #arena-panel button:active {
+    transform: translateY(1px);
+  }
+  /* 상태 텍스트 */
+  #arena-status, #arena-panel #arenaStatus {
+    margin: 0;
+    opacity: 0.85;
+    font-variant-numeric: tabular-nums;
+  }
+  /* h3를 버튼처럼 보이게 */
+  #arena-panel h3 {
+    cursor: pointer;
+    margin: 0;
+  }
+  /* arena-mode일 때만 하단으로 이동 */
+  #arena-panel.arena-mode {
+    top: auto !important;
+    bottom: 16px !important;
+    transform: translateX(-50%) !important;
+  }
   </style>
 </head>
 <body>
@@ -413,6 +502,39 @@
           <div class="cooldown-group" id="ai-cd"></div>
         </div>
       </div>
+
+      <section id="arena-panel" class="panel" hidden>
+        <h3>Self-Play Arena (Watch Only)</h3>
+        <div class="row">
+          <label>Policy A:
+            <select id="arenaPolicyA">
+              <option value="hard">hard (best checkpoint)</option>
+              <option value="latest">latest checkpoint</option>
+              <option value="rule">rule-based baseline</option>
+            </select>
+          </label>
+          <label>Policy B:
+            <select id="arenaPolicyB">
+              <option value="latest">latest checkpoint</option>
+              <option value="hard">hard (best checkpoint)</option>
+              <option value="rule">rule-based baseline</option>
+            </select>
+          </label>
+          <label>Speed:
+            <select id="arenaSpeed">
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="arenaStartBtn">Start Watch</button>
+          <button id="arenaStopBtn">Stop</button>
+          <button id="arenaResetBtn">Reset Match</button>
+        </div>
+        <p id="arenaStatus">idle</p>
+      </section>
 
       <div id="character-select">
         <div class="title-wrap">

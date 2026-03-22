@@ -56,6 +56,41 @@ async function loadImage(basePath, pathOrPaths) {
     return imgs.length === 1 ? imgs[0] : imgs;
 }
 
+// 이미지에서 알파가 있는 픽셀 영역(실제 그림 영역)만 찾아 변환
+function computeOpagueBounds(img, alphaThreshold = 1) {
+    const w = img.naturalWidth || img.width;
+    const h = img.naturalHeight || img.height;
+
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ictx = c.getContext('2d', { willReadFrequently: true });
+    ictx.drawImage(img, 0, 0, w, h);
+
+    const data = ictx.getImageData(0, 0, w, h).data;
+
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const a = data[(y * w + x) * 4 + 3];
+            if (a > alphaThreshold) {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+            }
+        }
+    }
+    
+    return {
+        sx: minX,
+        sy: minY,
+        sw: maxX - minX + 1,
+        sh: maxY - minY + 1,
+    }
+}
+
 export class Game {
     constructor(canvas, options) {
         this.canvas = canvas;
@@ -84,6 +119,11 @@ export class Game {
 
         this.canvasWidth = canvas.width;
         this.canvasHeight = canvas.height;
+
+        this.areaSourceRect = {
+            b: null,
+            w: null,
+        }
 
         this._updateViewport();
     }
@@ -127,6 +167,9 @@ export class Game {
         // R 장판 2장
         this.sprites.area_b = await loadImage(base, ASSET_PATHS.area_b);
         this.sprites.area_w = await loadImage(base, ASSET_PATHS.area_w);
+
+        this.areaSourceRect.b = computeOpagueBounds(this.sprites.area_b, 1);
+        this.areaSourceRect.w = computeOpagueBounds(this.sprites.area_w, 1);
 
         try {
             this.sprites.power_up = await loadImage(base, ASSET_PATHS.power_up);
@@ -343,26 +386,28 @@ export class Game {
             const duration = GAME_CONFIG.skillDurations.R || 1.0;
             const t = Math.max(0, Math.min(1, (z.expireAt - state.time) / duration));
 
-            const alpha = 0.15 + 0.35 * t; // 
-            const glow = 10 + 30 * t;
+            const alpha = 0.4 + 0.35 * t; // 
 
             const isBlack = z.color === '#5bc5ff';
             const areaImg = isBlack ? this.sprites.area_b : this.sprites.area_w;
+            const src = isBlack ? this.areaSourceRect.b : this.areaSourceRect.w;
 
             // z.dir(전방 단위 벡터) 기준 회전
-            const angle = Math.atan2(z.dir.y, z.dir.x);
-            
+            const angle = Math.atan2(z.dir.y, z.dir.x);            
             // 캔버스에서 x=0 시작 형태로 직사각형 그림
             const y = -z.thickness / 2;
 
             ctx.save();
             ctx.translate(z.origin.x, z.origin.y);
             ctx.rotate(angle);
-
             ctx.globalAlpha = alpha;
 
             if(areaImg && areaImg.complete) {
-                ctx.drawImage(areaImg, 0, y, z.length, z.thickness);
+                ctx.drawImage(
+                    areaImg,
+                    src.sx, src.sy, src.sw, src.sh,
+                    0, y, z.length, z.thickness
+                )
             }
 
             ctx.restore();

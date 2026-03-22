@@ -4,6 +4,9 @@ export const GAME_CONFIG = {
     // 플레이어 체력 최대치
     playerHPMAX: 10,
 
+    // 기본 공격 연사 상한
+    basicAttackCooldown: 0.4,
+
     // 투사체 속도
     projectileSpeed: 900,
     baseProjectileCount: 1, // 기본 투사체 개수

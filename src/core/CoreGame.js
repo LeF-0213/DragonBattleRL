@@ -539,7 +539,7 @@ export class CoreGame {
     tryShoot(shooter, targetPos, who) {
         if (!shooter?.alive) return;
 
-        const baseCd = 0.12 // baseCd: 기본 공격 연사 제한용 (너무 과발사 방지)
+        const baseCd = GAME_CONFIG.basicAttackCooldown;
         if (who === 'player') {
             if (this.shootCdPlayer > 0) return;
             this.shootCdPlayer = baseCd;
